@@ -1,0 +1,158 @@
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X } from "lucide-react";
+import { Task } from "@/types/app";
+import { useApp } from "@/context/AppContext";
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  editingTask?: Task | null;
+}
+
+export default function TaskEditor({ open, onClose, editingTask }: Props) {
+  const { dispatch } = useApp();
+  const [title, setTitle] = useState(editingTask?.title ?? "");
+  const [taskType, setTaskType] = useState<"weekly" | "one-time">(editingTask?.taskType ?? "weekly");
+  const [hours, setHours] = useState(editingTask?.requiredWeeklyHours?.toString() ?? "1");
+  const [kissValue, setKissValue] = useState(editingTask?.kissRewardValue?.toString() ?? "1");
+
+  // Reset form when editingTask changes
+  const handleSave = () => {
+    const task: Task = {
+      id: editingTask?.id ?? `task-${Date.now()}`,
+      title: title.trim() || "Untitled Task",
+      requiredWeeklyHours: taskType === "weekly" ? Math.max(0.5, parseFloat(hours) || 1) : 0,
+      accumulatedSeconds: editingTask?.accumulatedSeconds ?? 0,
+      kissRewardValue: Math.max(1, parseInt(kissValue) || 1),
+      isCompleted: editingTask?.isCompleted ?? false,
+      taskType,
+    };
+
+    if (editingTask) {
+      dispatch({ type: "EDIT_TASK", task });
+    } else {
+      dispatch({ type: "ADD_TASK", task });
+    }
+    onClose();
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/20 backdrop-blur-sm"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.9, y: 20 }}
+            onClick={(e) => e.stopPropagation()}
+            className="glass-card p-6 w-full max-w-sm space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-display font-bold text-lg">
+                {editingTask ? "Edit Task" : "New Task"} 🦝
+              </h3>
+              <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Title */}
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Task Name</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. 📚 Reading"
+                className="mt-1 w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+
+            {/* Task Type */}
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Type</label>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setTaskType("weekly")}
+                  className={`py-2 rounded-xl text-sm font-semibold transition-colors ${
+                    taskType === "weekly"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  ⏱ Weekly Timer
+                </button>
+                <button
+                  onClick={() => setTaskType("one-time")}
+                  className={`py-2 rounded-xl text-sm font-semibold transition-colors ${
+                    taskType === "one-time"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  ✅ One-Time
+                </button>
+              </div>
+            </div>
+
+            {/* Hours (only for weekly) */}
+            {taskType === "weekly" && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Weekly Hours Goal</label>
+                <input
+                  type="number"
+                  value={hours}
+                  onChange={(e) => setHours(e.target.value)}
+                  min="0.5"
+                  step="0.5"
+                  className="mt-1 w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+            )}
+
+            {/* Kiss reward */}
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Kiss Reward 💋</label>
+              <input
+                type="number"
+                value={kissValue}
+                onChange={(e) => setKissValue(e.target.value)}
+                min="1"
+                max="10"
+                className="mt-1 w-full px-4 py-2.5 rounded-xl bg-muted border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+
+            {/* Save / Delete */}
+            <div className="flex gap-2 pt-2">
+              {editingTask && (
+                <button
+                  onClick={() => {
+                    dispatch({ type: "DELETE_TASK", taskId: editingTask.id });
+                    onClose();
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-destructive/10 text-destructive text-sm font-semibold hover:bg-destructive/20 transition-colors"
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                onClick={handleSave}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
+              >
+                {editingTask ? "Save Changes" : "Add Task"} 💕
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}

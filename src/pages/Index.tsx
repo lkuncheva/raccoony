@@ -5,30 +5,29 @@ import TaskCard from "@/components/TaskCard";
 import KissTokens from "@/components/KissTokens";
 import StreakDisplay from "@/components/StreakDisplay";
 import RewardModal from "@/components/RewardModal";
+import RewardProgress from "@/components/RewardProgress";
 import MoodHistory from "@/components/MoodHistory";
 import SettingsPanel from "@/components/SettingsPanel";
-import { RaccoonState } from "@/types/app";
-import { getCompletionMessage } from "@/lib/encouragement";
+import TaskEditor from "@/components/TaskEditor";
+import { RaccoonState, Task } from "@/types/app";
+import { Plus } from "lucide-react";
 
 export default function Index() {
   const { state, dispatch } = useApp();
   const [raccoonMessage, setRaccoonMessage] = useState("Hi love! Ready to be amazing today? 🦝💕");
   const [showReward, setShowReward] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
-  // Determine raccoon state based on app state
-  const anyRunning = false; // We can't easily detect this from state alone
-  const allCompleted = state.tasks.every((t) => t.isCompleted);
+  const allCompleted = state.tasks.length > 0 && state.tasks.every((t) => t.isCompleted);
   const anyCompleted = state.tasks.some((t) => t.isCompleted);
 
   let raccoonState: RaccoonState = "idle";
   if (allCompleted) raccoonState = "celebrating";
   else if (anyCompleted) raccoonState = "happy";
 
-  // Show big reward modal
   useEffect(() => {
-    if (state.bigRewardUnlocked) {
-      setShowReward(true);
-    }
+    if (state.bigRewardUnlocked) setShowReward(true);
   }, [state.bigRewardUnlocked]);
 
   const handleAcknowledgeReward = () => {
@@ -36,17 +35,21 @@ export default function Index() {
     dispatch({ type: "ACKNOWLEDGE_BIG_REWARD" });
   };
 
-  const handleEncouragementMessage = (msg: string) => {
-    setRaccoonMessage(msg);
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setEditorOpen(true);
   };
 
-  // Completion percentage
+  const handleNewTask = () => {
+    setEditingTask(null);
+    setEditorOpen(true);
+  };
+
   const completedCount = state.tasks.filter((t) => t.isCompleted).length;
   const totalCount = state.tasks.length;
 
   return (
     <div className="min-h-screen bg-background pb-8">
-      {/* Header */}
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/30 px-4 py-3">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div>
@@ -58,12 +61,10 @@ export default function Index() {
       </header>
 
       <main className="max-w-md mx-auto px-4 space-y-4 mt-4">
-        {/* Mascot section */}
         <div className="flex justify-center py-2">
           <RaccoonMascot state={raccoonState} message={raccoonMessage} size="lg" />
         </div>
 
-        {/* Stats row */}
         <div className="grid grid-cols-2 gap-3">
           <StreakDisplay streak={state.streak} />
           <div className="glass-card p-4 flex flex-col justify-center">
@@ -75,27 +76,41 @@ export default function Index() {
           </div>
         </div>
 
-        {/* Kiss tokens */}
         <KissTokens count={state.kissTokens} />
+
+        {/* Secret reward progress */}
+        <RewardProgress />
 
         {/* Tasks */}
         <div>
-          <h2 className="font-display font-bold text-lg mb-3">📋 Weekly Tasks</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-display font-bold text-lg">📋 Tasks</h2>
+            <button
+              onClick={handleNewTask}
+              className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
           <div className="space-y-3">
             {state.tasks.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}
-                onEncouragementMessage={handleEncouragementMessage}
+                onEncouragementMessage={setRaccoonMessage}
+                onEdit={handleEditTask}
               />
             ))}
+            {state.tasks.length === 0 && (
+              <p className="text-center text-muted-foreground text-sm py-8">
+                No tasks yet! Tap + to add one 🦝
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Mood history */}
         <MoodHistory history={state.moodHistory} />
 
-        {/* Footer affirmation */}
         <div className="text-center py-4">
           <p className="text-xs text-muted-foreground/60">
             Made with 💕 for the most wonderful person
@@ -103,8 +118,15 @@ export default function Index() {
         </div>
       </main>
 
-      {/* Big reward modal */}
       <RewardModal open={showReward} onClose={handleAcknowledgeReward} />
+      <TaskEditor
+        open={editorOpen}
+        onClose={() => {
+          setEditorOpen(false);
+          setEditingTask(null);
+        }}
+        editingTask={editingTask}
+      />
     </div>
   );
 }

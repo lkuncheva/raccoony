@@ -2,10 +2,13 @@
 export interface Task {
   id: string;
   title: string;
+  /** For weekly tasks: hours required per week. For one-time: ignored */
   requiredWeeklyHours: number;
   accumulatedSeconds: number;
   kissRewardValue: number;
   isCompleted: boolean;
+  /** "weekly" resets each week, "one-time" stays completed forever */
+  taskType: "weekly" | "one-time";
 }
 
 /** Mood options for before/after tracking */
@@ -30,6 +33,7 @@ export interface AppState {
   lastResetTimestamp: number;
   bigRewardUnlocked: boolean;
   moodHistory: MoodEntry[];
+  theme: "light" | "dark";
 }
 
 /** Default tasks to start with */
@@ -41,6 +45,7 @@ export const DEFAULT_TASKS: Task[] = [
     accumulatedSeconds: 0,
     kissRewardValue: 3,
     isCompleted: false,
+    taskType: "weekly",
   },
   {
     id: "exercise",
@@ -49,6 +54,7 @@ export const DEFAULT_TASKS: Task[] = [
     accumulatedSeconds: 0,
     kissRewardValue: 2,
     isCompleted: false,
+    taskType: "weekly",
   },
   {
     id: "creative",
@@ -57,6 +63,7 @@ export const DEFAULT_TASKS: Task[] = [
     accumulatedSeconds: 0,
     kissRewardValue: 2,
     isCompleted: false,
+    taskType: "weekly",
   },
   {
     id: "cleaning",
@@ -65,6 +72,7 @@ export const DEFAULT_TASKS: Task[] = [
     accumulatedSeconds: 0,
     kissRewardValue: 1,
     isCompleted: false,
+    taskType: "weekly",
   },
 ];
 
