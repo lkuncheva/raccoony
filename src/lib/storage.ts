@@ -12,6 +12,7 @@ function getDefaultState(): AppState {
     lastResetTimestamp: Date.now(),
     bigRewardUnlocked: false,
     moodHistory: [],
+    theme: "light",
   };
 }
 
@@ -19,8 +20,16 @@ function getDefaultState(): AppState {
 export function loadState(): AppState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return getDefaultState();
-    return { ...getDefaultState(), ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    const migrated = {
+      ...getDefaultState(),
+      ...parsed,
+      tasks: (parsed.tasks ?? DEFAULT_TASKS).map((t: any) => ({
+        ...t,
+        taskType: t.taskType ?? "weekly",
+      })),
+    };
+    return migrated;
   } catch {
     return getDefaultState();
   }

@@ -1,11 +1,15 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings, Trash2, RotateCcw } from "lucide-react";
+import { Settings, Trash2, RotateCcw, Sun, Moon } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 
 export default function SettingsPanel() {
   const [open, setOpen] = useState(false);
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
+
+  const toggleTheme = () => {
+    dispatch({ type: "SET_THEME", theme: state.theme === "light" ? "dark" : "light" });
+  };
 
   return (
     <>
@@ -33,6 +37,19 @@ export default function SettingsPanel() {
               className="glass-card p-6 w-full max-w-sm space-y-4"
             >
               <h3 className="font-display font-bold text-lg">Settings</h3>
+
+              {/* Theme toggle */}
+              <button
+                onClick={toggleTheme}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-muted hover:bg-secondary transition-colors text-sm"
+              >
+                {state.theme === "light" ? (
+                  <Moon className="w-4 h-4" />
+                ) : (
+                  <Sun className="w-4 h-4" />
+                )}
+                {state.theme === "light" ? "Switch to Dark Mode 🌙" : "Switch to Light Mode ☀️"}
+              </button>
 
               <button
                 onClick={() => {

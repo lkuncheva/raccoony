@@ -11,12 +11,11 @@ interface Props {
 export default function RewardModal({ open, onClose }: Props) {
   useEffect(() => {
     if (open) {
-      // Fire confetti! 🎉
-      const end = Date.now() + 2000;
+      const end = Date.now() + 3000;
       const fire = () => {
         confetti({
-          particleCount: 30,
-          spread: 70,
+          particleCount: 40,
+          spread: 80,
           origin: { y: 0.6 },
           colors: ["#e8789a", "#f0b8c8", "#c9a0dc", "#f7d794", "#ff9ff3"],
         });
@@ -45,20 +44,28 @@ export default function RewardModal({ open, onClose }: Props) {
           >
             <RaccoonMascot state="celebrating" size="lg" />
             <h2 className="font-display font-extrabold text-2xl text-foreground">
-              🎉 Surprise Date Unlocked!
+              🎉 You Unlocked a Secret Reward!
             </h2>
             <p className="text-muted-foreground">
-              You completed ALL tasks for 2 weeks in a row! You've earned a special surprise date.
-              Raccoonaki is throwing a party! 🦝🎊
+              You completed ALL tasks for 2 weeks in a row! 
+              That's incredible dedication and Raccoonaki is SO proud of you! 🦝🎊
             </p>
-            <p className="text-sm text-kiss font-semibold">
+            <div className="bg-primary/10 rounded-2xl p-4 space-y-2">
+              <p className="font-display font-bold text-primary text-lg">
+                📸 Screenshot this!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Send this screenshot to your Raccoonaki so they can tell you what your special surprise reward is! 💕🦝
+              </p>
+            </div>
+            <p className="text-xs text-kiss font-semibold">
               You are truly incredible. Never forget that. 💕
             </p>
             <button
               onClick={onClose}
               className="mt-4 px-6 py-3 rounded-2xl bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity"
             >
-              Yay! Thank you! 💕
+              I'll send the screenshot! 📸💕
             </button>
           </motion.div>
         </motion.div>
