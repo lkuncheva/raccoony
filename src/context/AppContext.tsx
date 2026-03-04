@@ -1,3 +1,4 @@
+/* Raccoonaki App Context */
 import React, { createContext, useContext, useEffect, useReducer } from "react";
 import { AppState, Task, MoodEntry, DEFAULT_TASKS } from "@/types/app";
 import { loadState, saveState } from "@/lib/storage";
