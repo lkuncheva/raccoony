@@ -21,7 +21,6 @@ function formatTime(totalSeconds: number): string {
   return `${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`;
 }
 
-/** Fire confetti scaled to difficulty */
 function celebrate(difficulty: string) {
   const intensity: Record<string, { count: number; spread: number; duration: number }> = {
     easy: { count: 20, spread: 50, duration: 1000 },
@@ -46,39 +45,75 @@ function celebrate(difficulty: string) {
 export default function TaskCard({ task, onEncouragementMessage, onEdit }: Props) {
   const { dispatch } = useApp();
   const [showMood, setShowMood] = useState<"before" | "after" | null>(null);
+  // For one-time/daily: hold completion until after mood is picked
+  const [pendingComplete, setPendingComplete] = useState(false);
 
   const isOneTime = task.taskType === "one-time";
   const isDaily = task.taskType === "daily";
   const isTimer = task.taskType === "weekly";
 
-  const { isRunning, start, stop, accumulatedSeconds, requiredSeconds, progress, isCompleted } =
+  const { isRunning, start, stop, accumulatedSeconds, progress, isCompleted } =
     useTimer(task.id);
 
+  // ── Weekly timer handlers ──────────────────────────────────────────────
   const handlePlay = () => setShowMood("before");
   const handleStop = () => {
     stop();
     setShowMood("after");
   };
 
+  // ── One-time / Daily handlers ──────────────────────────────────────────
+  const handleCompleteCheckbox = () => {
+    // Ask for "before" mood first, then complete after selection
+    setPendingComplete(true);
+    setShowMood("before");
+  };
+
+  const doComplete = () => {
+    const actionType = isDaily ? "COMPLETE_DAILY" : "COMPLETE_ONE_TIME";
+    dispatch({ type: actionType, taskId: task.id });
+    celebrate(task.difficulty);
+    onEncouragementMessage(getCompletionMessage());
+  };
+
+  // ── Shared mood handler ────────────────────────────────────────────────
   const handleMoodSelect = (mood: MoodOption) => {
     dispatch({
       type: "ADD_MOOD",
       entry: { timestamp: Date.now(), mood, type: showMood!, taskId: task.id },
     });
+
     if (showMood === "before") {
       onEncouragementMessage(getStartingMessage(mood));
-      start();
+      if (isTimer) {
+        // Weekly: start the timer
+        start();
+      } else if (pendingComplete) {
+        // One-time/daily: complete the task, then ask for "after" mood
+        doComplete();
+        setShowMood("after");
+        setPendingComplete(false);
+        return; // skip setShowMood(null) below
+      }
     } else {
+      // after
       onEncouragementMessage(getAfterTaskMessage(mood));
     }
+
     setShowMood(null);
   };
 
-  const handleCompleteCheckbox = () => {
-    const actionType = isDaily ? "COMPLETE_DAILY" : "COMPLETE_ONE_TIME";
-    dispatch({ type: actionType, taskId: task.id });
-    celebrate(task.difficulty);
-    onEncouragementMessage(getCompletionMessage());
+  const handleSkipMood = () => {
+    if (showMood === "before" && pendingComplete) {
+      doComplete();
+      setShowMood("after");
+      setPendingComplete(false);
+      return;
+    }
+    if (showMood === "before" && isTimer) {
+      start();
+    }
+    setShowMood(null);
   };
 
   const progressPercent = Math.round(progress * 100);
@@ -120,8 +155,19 @@ export default function TaskCard({ task, onEncouragementMessage, onEdit }: Props
         </div>
       </div>
 
-      {/* One-time or Daily: checkbox-style completion */}
-      {(isOneTime || isDaily) && (
+      {/* Mood picker — shown for ALL task types */}
+      <AnimatePresence>
+        {showMood && (
+          <MoodPicker
+            type={showMood}
+            onSelect={handleMoodSelect}
+            onClose={handleSkipMood}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* One-time or Daily */}
+      {(isOneTime || isDaily) && !showMood && (
         <>
           {!isCompleted ? (
             <button
@@ -155,16 +201,6 @@ export default function TaskCard({ task, onEncouragementMessage, onEdit }: Props
             <span>{formatTime(accumulatedSeconds)}</span>
             <span>{task.requiredWeeklyHours}h goal</span>
           </div>
-
-          <AnimatePresence>
-            {showMood && (
-              <MoodPicker
-                type={showMood}
-                onSelect={handleMoodSelect}
-                onClose={() => setShowMood(null)}
-              />
-            )}
-          </AnimatePresence>
 
           {!isCompleted && !showMood && (
             <div className="flex gap-2">
