@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, Trash2, RotateCcw, Sun, Moon } from "lucide-react";
 import { useApp } from "@/context/AppContext";
@@ -11,6 +12,77 @@ export default function SettingsPanel() {
     dispatch({ type: "SET_THEME", theme: state.theme === "light" ? "dark" : "light" });
   };
 
+  const modal = (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          style={{ position: "fixed", inset: 0, zIndex: 9999 }}
+          className="flex items-end justify-center p-4 bg-foreground/20 backdrop-blur-sm"
+          onClick={() => setOpen(false)}
+        >
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            onClick={(e) => e.stopPropagation()}
+            className="glass-card p-6 w-full max-w-sm space-y-4"
+            style={{ marginBottom: "env(safe-area-inset-bottom, 0px)" }}
+          >
+            <h3 className="font-display font-bold text-lg">Settings</h3>
+
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-muted hover:bg-secondary transition-colors text-sm"
+            >
+              {state.theme === "light" ? (
+                <Moon className="w-4 h-4" />
+              ) : (
+                <Sun className="w-4 h-4" />
+              )}
+              {state.theme === "light" ? "Switch to Dark Mode 🌙" : "Switch to Light Mode ☀️"}
+            </button>
+
+            <button
+              onClick={() => {
+                dispatch({ type: "RESET_TOKENS" });
+                setOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-muted hover:bg-secondary transition-colors text-sm"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset Kiss Tokens
+            </button>
+
+            <button
+              onClick={() => {
+                if (confirm("This will reset everything. Are you sure?")) {
+                  dispatch({ type: "RESET_ALL" });
+                  setOpen(false);
+                }
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
+            >
+              <Trash2 className="w-4 h-4" />
+              Reset Everything
+            </button>
+
+            <button
+              onClick={() => setOpen(false)}
+              className="w-full py-3 text-sm text-muted-foreground"
+            >
+              Close
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   return (
     <>
       <button
@@ -20,71 +92,7 @@ export default function SettingsPanel() {
         <Settings className="w-5 h-5" />
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center p-4 bg-foreground/20 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
-          >
-            <motion.div
-              initial={{ y: 100 }}
-              animate={{ y: 0 }}
-              exit={{ y: 100 }}
-              onClick={(e) => e.stopPropagation()}
-              className="glass-card p-6 w-full max-w-sm space-y-4"
-            >
-              <h3 className="font-display font-bold text-lg">Settings</h3>
-
-              {/* Theme toggle */}
-              <button
-                onClick={toggleTheme}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-muted hover:bg-secondary transition-colors text-sm"
-              >
-                {state.theme === "light" ? (
-                  <Moon className="w-4 h-4" />
-                ) : (
-                  <Sun className="w-4 h-4" />
-                )}
-                {state.theme === "light" ? "Switch to Dark Mode 🌙" : "Switch to Light Mode ☀️"}
-              </button>
-
-              <button
-                onClick={() => {
-                  dispatch({ type: "RESET_TOKENS" });
-                  setOpen(false);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-muted hover:bg-secondary transition-colors text-sm"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Reset Kiss Tokens
-              </button>
-
-              <button
-                onClick={() => {
-                  if (confirm("This will reset everything. Are you sure?")) {
-                    dispatch({ type: "RESET_ALL" });
-                    setOpen(false);
-                  }
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm"
-              >
-                <Trash2 className="w-4 h-4" />
-                Reset Everything
-              </button>
-
-              <button
-                onClick={() => setOpen(false)}
-                className="w-full py-3 text-sm text-muted-foreground"
-              >
-                Close
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {createPortal(modal, document.body)}
     </>
   );
 }
