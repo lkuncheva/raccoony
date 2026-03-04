@@ -62,12 +62,13 @@ function reducer(state: AppState, action: Action): AppState {
     case "COMPLETE_ONE_TIME": {
       const task = state.tasks.find((t) => t.id === action.taskId);
       if (!task || task.isCompleted) return state;
+      const today = new Date().toISOString().slice(0, 10);
       const streakUpdate = updateStreak(state);
       return {
         ...state,
         ...streakUpdate,
         tasks: state.tasks.map((t) =>
-          t.id === action.taskId ? { ...t, isCompleted: true } : t
+          t.id === action.taskId ? { ...t, isCompleted: true, lastCompletedDate: today } : t
         ),
         kissTokens: state.kissTokens + task.kissRewardValue,
       };

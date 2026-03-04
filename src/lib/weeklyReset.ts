@@ -40,6 +40,7 @@ export function checkWeeklyReset(state: AppState): AppState | null {
 
 /**
  * Daily reset: resets daily tasks at midnight each day.
+ * Also removes completed one-time tasks from the previous day.
  */
 export function checkDailyReset(state: AppState): AppState | null {
   const today = new Date().toISOString().slice(0, 10);
@@ -48,14 +49,21 @@ export function checkDailyReset(state: AppState): AppState | null {
     (t) => t.taskType === "daily" && t.isCompleted && t.lastCompletedDate !== today
   );
 
-  if (!hasDailyToReset) return null;
+  const hasCompletedOneTime = state.tasks.some(
+    (t) => t.taskType === "one-time" && t.isCompleted && t.lastCompletedDate !== today
+  );
+
+  if (!hasDailyToReset && !hasCompletedOneTime) return null;
 
   return {
     ...state,
-    tasks: state.tasks.map((t) =>
-      t.taskType === "daily" && t.isCompleted && t.lastCompletedDate !== today
-        ? { ...t, isCompleted: false }
-        : t
-    ),
+    // Remove completed one-time tasks from previous days, reset daily tasks
+    tasks: state.tasks
+      .filter((t) => !(t.taskType === "one-time" && t.isCompleted && t.lastCompletedDate !== today))
+      .map((t) =>
+        t.taskType === "daily" && t.isCompleted && t.lastCompletedDate !== today
+          ? { ...t, isCompleted: false }
+          : t
+      ),
   };
 }

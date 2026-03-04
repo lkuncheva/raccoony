@@ -9,8 +9,16 @@ import RewardProgress from "@/components/RewardProgress";
 import MoodHistory from "@/components/MoodHistory";
 import SettingsPanel from "@/components/SettingsPanel";
 import TaskEditor from "@/components/TaskEditor";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RaccoonState, Task } from "@/types/app";
 import { Plus } from "lucide-react";
+
+/** Sort tasks: incomplete first (newest on top), completed at bottom */
+function sortTasks(tasks: Task[]): Task[] {
+  const incomplete = tasks.filter((t) => !t.isCompleted);
+  const completed = tasks.filter((t) => t.isCompleted);
+  return [...incomplete.reverse(), ...completed];
+}
 
 export default function Index() {
   const { state, dispatch } = useApp();
@@ -45,29 +53,32 @@ export default function Index() {
     setEditorOpen(true);
   };
 
-  // Separate tasks by type
-  const oneTimeTasks = state.tasks.filter((t) => t.taskType === "one-time");
-  const dailyTasks = state.tasks.filter((t) => t.taskType === "daily");
-  const weeklyTasks = state.tasks.filter((t) => t.taskType === "weekly");
+  // Separate and sort tasks by type
+  const oneTimeTasks = sortTasks(state.tasks.filter((t) => t.taskType === "one-time"));
+  const dailyTasks = sortTasks(state.tasks.filter((t) => t.taskType === "daily"));
+  const weeklyTasks = sortTasks(state.tasks.filter((t) => t.taskType === "weekly"));
 
   const completedCount = state.tasks.filter((t) => t.isCompleted).length;
   const totalCount = state.tasks.length;
 
-  const renderSection = (title: string, emoji: string, tasks: Task[]) => {
-    if (tasks.length === 0) return null;
+  const renderTaskList = (tasks: Task[], emptyMsg: string) => {
+    if (tasks.length === 0) {
+      return (
+        <p className="text-center text-muted-foreground text-sm py-8">
+          {emptyMsg}
+        </p>
+      );
+    }
     return (
-      <div>
-        <h2 className="font-display font-bold text-base mb-2">{emoji} {title}</h2>
-        <div className="space-y-3">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onEncouragementMessage={setRaccoonMessage}
-              onEdit={handleEditTask}
-            />
-          ))}
-        </div>
+      <div className="space-y-3">
+        {tasks.map((task) => (
+          <TaskCard
+            key={task.id}
+            task={task}
+            onEncouragementMessage={setRaccoonMessage}
+            onEdit={handleEditTask}
+          />
+        ))}
       </div>
     );
   };
@@ -114,18 +125,31 @@ export default function Index() {
           </button>
         </div>
 
-        {/* Task sections */}
-        {renderSection("One-Time Tasks", "✅", oneTimeTasks)}
-        {renderSection("Daily Tasks", "📅", dailyTasks)}
-        {renderSection("Weekly Tasks", "⏱", weeklyTasks)}
+        {/* Tabbed sections */}
+        <Tabs defaultValue="one-time" className="w-full">
+          <TabsList className="w-full grid grid-cols-4">
+            <TabsTrigger value="one-time" className="text-xs">✅ One-Time</TabsTrigger>
+            <TabsTrigger value="daily" className="text-xs">📅 Daily</TabsTrigger>
+            <TabsTrigger value="weekly" className="text-xs">⏱ Weekly</TabsTrigger>
+            <TabsTrigger value="mood" className="text-xs">💭 Mood</TabsTrigger>
+          </TabsList>
 
-        {state.tasks.length === 0 && (
-          <p className="text-center text-muted-foreground text-sm py-8">
-            No tasks yet! Tap + to add one 🦝
-          </p>
-        )}
+          <TabsContent value="one-time">
+            {renderTaskList(oneTimeTasks, "No one-time tasks yet! Tap + to add one 🦝")}
+          </TabsContent>
 
-        <MoodHistory history={state.moodHistory} />
+          <TabsContent value="daily">
+            {renderTaskList(dailyTasks, "No daily tasks yet! Tap + to add one 🦝")}
+          </TabsContent>
+
+          <TabsContent value="weekly">
+            {renderTaskList(weeklyTasks, "No weekly tasks yet! Tap + to add one 🦝")}
+          </TabsContent>
+
+          <TabsContent value="mood">
+            <MoodHistory history={state.moodHistory} />
+          </TabsContent>
+        </Tabs>
 
         <div className="text-center py-4">
           <p className="text-xs text-muted-foreground/60">
