@@ -16,7 +16,7 @@ export function useTimer(taskId: string) {
   const isCompleted = task?.isCompleted ?? false;
 
   // Check if task just reached goal
-  const justCompleted = accumulatedSeconds >= requiredSeconds && !isCompleted;
+  const justCompleted = requiredSeconds > 0 && accumulatedSeconds >= requiredSeconds && !isCompleted;
 
   const start = useCallback(() => {
     if (isRunning || isCompleted) return;
