@@ -45,8 +45,32 @@ export default function Index() {
     setEditorOpen(true);
   };
 
+  // Separate tasks by type
+  const oneTimeTasks = state.tasks.filter((t) => t.taskType === "one-time");
+  const dailyTasks = state.tasks.filter((t) => t.taskType === "daily");
+  const weeklyTasks = state.tasks.filter((t) => t.taskType === "weekly");
+
   const completedCount = state.tasks.filter((t) => t.isCompleted).length;
   const totalCount = state.tasks.length;
+
+  const renderSection = (title: string, emoji: string, tasks: Task[]) => {
+    if (tasks.length === 0) return null;
+    return (
+      <div>
+        <h2 className="font-display font-bold text-base mb-2">{emoji} {title}</h2>
+        <div className="space-y-3">
+          {tasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              onEncouragementMessage={setRaccoonMessage}
+              onEdit={handleEditTask}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background pb-8">
@@ -68,7 +92,7 @@ export default function Index() {
         <div className="grid grid-cols-2 gap-3">
           <StreakDisplay streak={state.streak} />
           <div className="glass-card p-4 flex flex-col justify-center">
-            <p className="text-xs text-muted-foreground font-medium">This Week</p>
+            <p className="text-xs text-muted-foreground font-medium">Today</p>
             <p className="font-display font-bold text-2xl">
               {completedCount}/{totalCount}
             </p>
@@ -77,37 +101,29 @@ export default function Index() {
         </div>
 
         <KissTokens count={state.kissTokens} />
-
-        {/* Secret reward progress */}
         <RewardProgress />
 
-        {/* Tasks */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display font-bold text-lg">📋 Tasks</h2>
-            <button
-              onClick={handleNewTask}
-              className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 transition-opacity"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="space-y-3">
-            {state.tasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onEncouragementMessage={setRaccoonMessage}
-                onEdit={handleEditTask}
-              />
-            ))}
-            {state.tasks.length === 0 && (
-              <p className="text-center text-muted-foreground text-sm py-8">
-                No tasks yet! Tap + to add one 🦝
-              </p>
-            )}
-          </div>
+        {/* Add task button */}
+        <div className="flex justify-end">
+          <button
+            onClick={handleNewTask}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+          >
+            <Plus className="w-4 h-4" />
+            Add Task
+          </button>
         </div>
+
+        {/* Task sections */}
+        {renderSection("One-Time Tasks", "✅", oneTimeTasks)}
+        {renderSection("Daily Tasks", "📅", dailyTasks)}
+        {renderSection("Weekly Tasks", "⏱", weeklyTasks)}
+
+        {state.tasks.length === 0 && (
+          <p className="text-center text-muted-foreground text-sm py-8">
+            No tasks yet! Tap + to add one 🦝
+          </p>
+        )}
 
         <MoodHistory history={state.moodHistory} />
 

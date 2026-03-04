@@ -29,8 +29,8 @@ export default function StreakDisplay({ streak }: Props) {
           {streak === 0
             ? "Start your streak!"
             : streak === 1
-            ? "week streak!"
-            : `week streak! 🔥`}
+            ? "day streak!"
+            : `day streak! 🔥`}
         </p>
       </div>
     </div>
