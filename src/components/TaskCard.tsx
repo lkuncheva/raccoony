@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Check, Pencil } from "lucide-react";
+import confetti from "canvas-confetti";
 import { useTimer } from "@/hooks/useTimer";
-import { Task, MoodOption } from "@/types/app";
+import { Task, MoodOption, DIFFICULTY_CONFIG } from "@/types/app";
 import { useApp } from "@/context/AppContext";
-import { getStartingMessage, getAfterTaskMessage } from "@/lib/encouragement";
+import { getStartingMessage, getAfterTaskMessage, getCompletionMessage } from "@/lib/encouragement";
 import MoodPicker from "./MoodPicker";
 
 interface Props {
@@ -20,14 +21,36 @@ function formatTime(totalSeconds: number): string {
   return `${h}h ${m.toString().padStart(2, "0")}m ${s.toString().padStart(2, "0")}s`;
 }
 
+/** Fire confetti scaled to difficulty */
+function celebrate(difficulty: string) {
+  const intensity: Record<string, { count: number; spread: number; duration: number }> = {
+    easy: { count: 20, spread: 50, duration: 1000 },
+    medium: { count: 40, spread: 70, duration: 1500 },
+    hard: { count: 60, spread: 90, duration: 2500 },
+    epic: { count: 100, spread: 120, duration: 4000 },
+  };
+  const cfg = intensity[difficulty] ?? intensity.medium;
+  const end = Date.now() + cfg.duration;
+  const fire = () => {
+    confetti({
+      particleCount: cfg.count,
+      spread: cfg.spread,
+      origin: { y: 0.6 },
+      colors: ["#e8789a", "#f0b8c8", "#c9a0dc", "#f7d794", "#ff9ff3"],
+    });
+    if (Date.now() < end) requestAnimationFrame(fire);
+  };
+  fire();
+}
+
 export default function TaskCard({ task, onEncouragementMessage, onEdit }: Props) {
   const { dispatch } = useApp();
   const [showMood, setShowMood] = useState<"before" | "after" | null>(null);
 
-  // One-time tasks don't use timer
   const isOneTime = task.taskType === "one-time";
+  const isDaily = task.taskType === "daily";
+  const isTimer = task.taskType === "weekly";
 
-  // Timer hook (still safe to call for one-time, just won't use it)
   const { isRunning, start, stop, accumulatedSeconds, requiredSeconds, progress, isCompleted } =
     useTimer(task.id);
 
@@ -43,33 +66,41 @@ export default function TaskCard({ task, onEncouragementMessage, onEdit }: Props
       entry: { timestamp: Date.now(), mood, type: showMood!, taskId: task.id },
     });
     if (showMood === "before") {
-      const msg = getStartingMessage(mood);
-      onEncouragementMessage(msg);
+      onEncouragementMessage(getStartingMessage(mood));
       start();
     } else {
-      const msg = getAfterTaskMessage(mood);
-      onEncouragementMessage(msg);
+      onEncouragementMessage(getAfterTaskMessage(mood));
     }
     setShowMood(null);
   };
 
-  const handleCompleteOneTime = () => {
-    dispatch({ type: "COMPLETE_ONE_TIME", taskId: task.id });
-    onEncouragementMessage("You did it! One more thing checked off! 🦝💕");
+  const handleCompleteCheckbox = () => {
+    const actionType = isDaily ? "COMPLETE_DAILY" : "COMPLETE_ONE_TIME";
+    dispatch({ type: actionType, taskId: task.id });
+    celebrate(task.difficulty);
+    onEncouragementMessage(getCompletionMessage());
   };
 
   const progressPercent = Math.round(progress * 100);
+  const diffConfig = DIFFICULTY_CONFIG[task.difficulty];
 
   return (
     <motion.div
       layout
       className={`glass-card p-4 transition-all duration-300 ${
         isRunning ? "ring-2 ring-primary/40 kiss-glow" : ""
-      } ${isCompleted ? "opacity-80" : ""}`}
+      } ${isCompleted ? "opacity-70" : ""}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-display font-bold text-lg">{task.title}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-display font-bold text-base">{task.title}</h3>
+          {isOneTime && (
+            <span className={`text-xs ${diffConfig.color}`}>
+              {diffConfig.emoji}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => onEdit(task)}
@@ -89,12 +120,12 @@ export default function TaskCard({ task, onEncouragementMessage, onEdit }: Props
         </div>
       </div>
 
-      {/* One-time task: simple checkbox style */}
-      {isOneTime ? (
+      {/* One-time or Daily: checkbox-style completion */}
+      {(isOneTime || isDaily) && (
         <>
           {!isCompleted ? (
             <button
-              onClick={handleCompleteOneTime}
+              onClick={handleCompleteCheckbox}
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:opacity-90 transition-opacity"
             >
               <Check className="w-4 h-4" />
@@ -102,13 +133,15 @@ export default function TaskCard({ task, onEncouragementMessage, onEdit }: Props
             </button>
           ) : (
             <p className="text-sm text-success font-medium text-center">
-              ✨ Done! +{task.kissRewardValue} kiss{task.kissRewardValue > 1 ? "es" : ""}
+              ✨ Done! +{task.kissRewardValue} 💋
             </p>
           )}
         </>
-      ) : (
+      )}
+
+      {/* Weekly timer tasks */}
+      {isTimer && (
         <>
-          {/* Progress bar */}
           <div className="h-3 bg-muted rounded-full overflow-hidden mb-2">
             <motion.div
               className="h-full rounded-full bg-gradient-to-r from-primary to-kiss-glow"
@@ -118,13 +151,11 @@ export default function TaskCard({ task, onEncouragementMessage, onEdit }: Props
             />
           </div>
 
-          {/* Time info */}
           <div className="flex justify-between text-sm text-muted-foreground mb-3">
             <span>{formatTime(accumulatedSeconds)}</span>
             <span>{task.requiredWeeklyHours}h goal</span>
           </div>
 
-          {/* Mood picker overlay */}
           <AnimatePresence>
             {showMood && (
               <MoodPicker
@@ -135,7 +166,6 @@ export default function TaskCard({ task, onEncouragementMessage, onEdit }: Props
             )}
           </AnimatePresence>
 
-          {/* Controls */}
           {!isCompleted && !showMood && (
             <div className="flex gap-2">
               {!isRunning ? (
@@ -160,16 +190,19 @@ export default function TaskCard({ task, onEncouragementMessage, onEdit }: Props
 
           {isCompleted && (
             <p className="text-sm text-success font-medium text-center">
-              ✨ Completed! +{task.kissRewardValue} kiss{task.kissRewardValue > 1 ? "es" : ""}
+              ✨ Completed! +{task.kissRewardValue} 💋
             </p>
           )}
         </>
       )}
 
-      {/* Type badge */}
-      <div className="mt-2 flex justify-end">
+      {/* Type & reward badge */}
+      <div className="mt-2 flex justify-between items-center">
+        <span className="text-[10px] text-muted-foreground">
+          💋 {task.kissRewardValue} kisses
+        </span>
         <span className="text-[10px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-          {isOneTime ? "one-time" : "weekly"}
+          {isOneTime ? "one-time" : isDaily ? "daily" : "weekly"}
         </span>
       </div>
     </motion.div>

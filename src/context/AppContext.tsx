@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useReducer } from "react";
 import { AppState, Task, MoodEntry, DEFAULT_TASKS } from "@/types/app";
 import { loadState, saveState } from "@/lib/storage";
-import { checkWeeklyReset } from "@/lib/weeklyReset";
+import { checkWeeklyReset, checkDailyReset } from "@/lib/weeklyReset";
 
 export type Action =
   | { type: "TICK_TIMER"; taskId: string }
   | { type: "COMPLETE_TASK"; taskId: string }
-  | { type: "ADD_KISS_TOKENS"; amount: number }
+  | { type: "COMPLETE_ONE_TIME"; taskId: string }
+  | { type: "COMPLETE_DAILY"; taskId: string }
   | { type: "ADD_MOOD"; entry: MoodEntry }
   | { type: "ACKNOWLEDGE_BIG_REWARD" }
   | { type: "RESET_TOKENS" }
@@ -15,8 +16,23 @@ export type Action =
   | { type: "ADD_TASK"; task: Task }
   | { type: "EDIT_TASK"; task: Task }
   | { type: "DELETE_TASK"; taskId: string }
-  | { type: "COMPLETE_ONE_TIME"; taskId: string }
   | { type: "SET_THEME"; theme: "light" | "dark" };
+
+/** Helper to update daily streak */
+function updateStreak(state: AppState): Partial<AppState> {
+  const today = new Date().toISOString().slice(0, 10);
+  if (state.lastCompletionDate === today) return {};
+  
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+  
+  const newStreak = state.lastCompletionDate === yesterdayStr 
+    ? state.streak + 1 
+    : 1;
+  
+  return { streak: newStreak, lastCompletionDate: today };
+}
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -29,28 +45,48 @@ function reducer(state: AppState, action: Action): AppState {
             : t
         ),
       };
-    case "COMPLETE_TASK":
+    case "COMPLETE_TASK": {
+      const task = state.tasks.find((t) => t.id === action.taskId);
+      if (!task || task.isCompleted) return state;
+      const streakUpdate = updateStreak(state);
       return {
         ...state,
+        ...streakUpdate,
         tasks: state.tasks.map((t) =>
           t.id === action.taskId ? { ...t, isCompleted: true } : t
         ),
-        kissTokens:
-          state.kissTokens +
-          (state.tasks.find((t) => t.id === action.taskId)?.kissRewardValue ?? 0),
+        kissTokens: state.kissTokens + task.kissRewardValue,
       };
-    case "COMPLETE_ONE_TIME":
+    }
+    case "COMPLETE_ONE_TIME": {
+      const task = state.tasks.find((t) => t.id === action.taskId);
+      if (!task || task.isCompleted) return state;
+      const streakUpdate = updateStreak(state);
       return {
         ...state,
+        ...streakUpdate,
         tasks: state.tasks.map((t) =>
           t.id === action.taskId ? { ...t, isCompleted: true } : t
         ),
-        kissTokens:
-          state.kissTokens +
-          (state.tasks.find((t) => t.id === action.taskId)?.kissRewardValue ?? 0),
+        kissTokens: state.kissTokens + task.kissRewardValue,
       };
-    case "ADD_KISS_TOKENS":
-      return { ...state, kissTokens: state.kissTokens + action.amount };
+    }
+    case "COMPLETE_DAILY": {
+      const task = state.tasks.find((t) => t.id === action.taskId);
+      if (!task || task.isCompleted) return state;
+      const today = new Date().toISOString().slice(0, 10);
+      const streakUpdate = updateStreak(state);
+      return {
+        ...state,
+        ...streakUpdate,
+        tasks: state.tasks.map((t) =>
+          t.id === action.taskId 
+            ? { ...t, isCompleted: true, lastCompletedDate: today } 
+            : t
+        ),
+        kissTokens: state.kissTokens + task.kissRewardValue,
+      };
+    }
     case "ADD_MOOD":
       return { ...state, moodHistory: [...state.moodHistory, action.entry] };
     case "ACKNOWLEDGE_BIG_REWARD":
@@ -96,16 +132,16 @@ const AppContext = createContext<AppContextType | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, null, () => {
     const loaded = loadState();
-    const resetState = checkWeeklyReset(loaded);
-    return resetState ?? loaded;
+    const weeklyReset = checkWeeklyReset(loaded);
+    const afterWeekly = weeklyReset ?? loaded;
+    const dailyReset = checkDailyReset(afterWeekly);
+    return dailyReset ?? afterWeekly;
   });
 
-  // Apply theme class to document
   useEffect(() => {
     document.documentElement.classList.toggle("dark", state.theme === "dark");
   }, [state.theme]);
 
-  // Persist state on every change
   useEffect(() => {
     saveState(state);
   }, [state]);
